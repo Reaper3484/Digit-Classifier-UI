@@ -1,13 +1,8 @@
-import re
 import pygame
 from pygame.locals import *
-import pygame.window
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-import matplotlib.pyplot as plt
-
-import pred
 
 
 pygame.init()
@@ -167,16 +162,12 @@ while (running):
         if event.type == QUIT:
             running = False
         
-        any_change = False
-
         if event.type == MOUSEBUTTONDOWN:
             if event.button == 1: # Left click
                 for i in range(grid_height):
                     for j in range(grid_height):
                         if grid.grid_cells[i][j].rect.collidepoint(event.pos):
                             grid.grid_cells[i][j].state = GridCell.drawn
-                            if grid.grid_cells[i][j].value != GridCell.drawn: any_change = True
-
                 Grid.isDrawing = True
                 
             if event.button == 3: # Right click
@@ -184,7 +175,6 @@ while (running):
                     for j in range(grid_height):
                         if grid.grid_cells[i][j].rect.collidepoint(event.pos):
                             grid.grid_cells[i][j].state = GridCell.erased
-                            if grid.grid_cells[i][j].value != GridCell.erased: any_change = True
                 Grid.isErasing = True
 
         if event.type == MOUSEMOTION:
@@ -194,23 +184,20 @@ while (running):
                         if grid.grid_cells[i][j].rect.collidepoint(event.pos):
                             if Grid.isDrawing:
                                 grid.grid_cells[i][j].state = GridCell.drawn
-                                if grid.grid_cells[i][j].value != GridCell.drawn: any_change = True
                             else:
                                 grid.grid_cells[i][j].state = GridCell.erased
-                                if grid.grid_cells[i][j].value != GridCell.erased: any_change = True
                                 
         if event.type == MOUSEBUTTONUP:
             Grid.isErasing = False
             Grid.isDrawing = False
+            output = nn.predict()
+            ui.update(output)
 
         if event.type == KEYDOWN:
             if event.key == K_c:
-                any_change = True
                 grid.clear()
-
-        if any_change:
-            output = nn.predict()
-            ui.update(output)
+                output = nn.predict()
+                ui.update(output)
 
     screen.fill(bg_color)
 

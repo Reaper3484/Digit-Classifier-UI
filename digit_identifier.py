@@ -12,8 +12,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(base_dir, 'nn_model.h5')
 
 pygame.init()
-grid_width = 28
-grid_height = 28
+grid_length = 28
 cell_size = 20
 padding = 1
 
@@ -22,8 +21,8 @@ output_rect_color = 'grey'
 
 output_screen_width = 500
 
-width = grid_width * (cell_size + padding) + padding + output_screen_width
-height = grid_height * (cell_size + padding) + padding 
+width = grid_length * (cell_size + padding) + padding + output_screen_width
+height = grid_length * (cell_size + padding) + padding + 20
 bg_color = 'black'
 screen = pygame.display.set_mode((width, height))
 
@@ -80,41 +79,41 @@ class Grid:
     isErasing = False
 
     def __init__(self) -> None:
-       self.grid_cells = [[(x, y) for x in range(grid_height)] for y in range(grid_height)] 
-       self.grid_values = [[0 for x in range(grid_height)] for y in range(grid_height)] 
+       self.grid_cells = [[(x, y) for x in range(grid_length)] for y in range(grid_length)] 
+       self.grid_values = [[0 for x in range(grid_length)] for y in range(grid_length)] 
        self.initialise_cells()
     
     def initialise_cells(self):
-        for i in range(grid_height):
-            for j in range(grid_width):
+        for i in range(grid_length):
+            for j in range(grid_length):
                 cell = GridCell(padding + i * (cell_size + padding), padding + j * (cell_size + padding))
                 self.grid_cells[i][j] = cell
 
         # Set neighbors for each cell
-        for i in range(grid_height):
-            for j in range(grid_width):
+        for i in range(grid_length):
+            for j in range(grid_length):
                 cell = self.grid_cells[i][j]
 
                 # Assign neighbors
                 if i > 0:
                     cell.neighbors.append(self.grid_cells[i-1][j])  # Top neighbor
-                if i < grid_height - 1:
+                if i < grid_length - 1:
                     cell.neighbors.append(self.grid_cells[i+1][j])  # Bottom neighbor
                 if j > 0:
                     cell.neighbors.append(self.grid_cells[i][j-1])  # Left neighbor
-                if j < grid_width - 1:
+                if j < grid_length - 1:
                     cell.neighbors.append(self.grid_cells[i][j+1])  # Right neighbor
 
     def draw(self):
-        for i in range(grid_height):
-            for j in range(grid_width):
+        for i in range(grid_length):
+            for j in range(grid_length):
                 cell = self.grid_cells[i][j]
                 self.grid_values[i][j] = cell.update()
                 cell.draw()
 
     def clear(self):
-        for i in range(grid_height):
-            for j in range(grid_width):
+        for i in range(grid_length):
+            for j in range(grid_length):
                 cell = self.grid_cells[i][j]
                 cell.state = GridCell.erased
                 cell.value = GridCell.erased
@@ -137,21 +136,23 @@ class NeuralNetwork:
 
 class UI:
     def __init__(self) -> None:
-        self.probabilities = [0 for _ in range(10)]  # Initialize probabilities
-        self.rect_height = (height) // 10
-        self.rect_width = output_screen_width - 100  # Leave space for text on the right
+        self.probabilities = [0 for _ in range(10)]
+        self.font = pygame.font.SysFont(None, 28)
+        self.rect_height = (height - self.font.get_height()) // 10
+        self.rect_width = output_screen_width - 100
         self.padding = padding
-        self.font = pygame.font.SysFont(None, 24)  # Initialize font once
-        
+
         self.digit_surfaces = [self.font.render(f"Digit: {i}", True, (255, 255, 255)) for i in range(10)]
-        
         self.prob_surfaces = [self.font.render(f"Prob: 0.00", True, (255, 255, 255)) for _ in range(10)]
-        
-        self.rects = [(width - output_screen_width + self.padding, 
+
+        self.rects = [(width - output_screen_width + self.padding,
                       i * self.rect_height + output_rect_padding) for i in range(10)]
 
-        self.min_rect_width = 10  # Minimum bar width
-        self.max_rect_width = self.rect_width  # Maximum width for scaling
+        self.min_rect_width = 10
+        self.max_rect_width = self.rect_width
+
+        self.clear_surface = self.font.render('Press C to clear', True, (255, 255, 255))
+        self.clear_text_position = (0, height - self.font.get_height())  # Position at the bottom
 
     def update(self, new_probabilities):
         for i, prob in enumerate(new_probabilities):
@@ -169,6 +170,8 @@ class UI:
 
             screen.blit(self.digit_surfaces[i], (rect_x + rect_width + 10, rect_y))  # Digit label
             screen.blit(self.prob_surfaces[i], (rect_x + rect_width + 10, rect_y + 20))  # Probability text
+
+        screen.blit(self.clear_surface, self.clear_text_position)
 
 
 ui = UI()
@@ -195,16 +198,16 @@ while running:
 
         if event.type == MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click
-                for i in range(grid_height):
-                    for j in range(grid_height):
+                for i in range(grid_length):
+                    for j in range(grid_length):
                         if grid.grid_cells[i][j].rect.collidepoint(event.pos):
                             grid.grid_cells[i][j].state = GridCell.drawn
                             if grid.grid_cells[i][j].value != GridCell.drawn: any_change = True
                 Grid.isDrawing = True
                 
             if event.button == 3:  # Right click
-                for i in range(grid_height):
-                    for j in range(grid_height):
+                for i in range(grid_length):
+                    for j in range(grid_length):
                         if grid.grid_cells[i][j].rect.collidepoint(event.pos):
                             grid.grid_cells[i][j].state = GridCell.erased
                             if grid.grid_cells[i][j].value != GridCell.erased: any_change = True
@@ -212,8 +215,8 @@ while running:
 
         if event.type == MOUSEMOTION:
             if Grid.isDrawing or Grid.isErasing:
-                for i in range(grid_height):
-                    for j in range(grid_height):
+                for i in range(grid_length):
+                    for j in range(grid_length):
                         if grid.grid_cells[i][j].rect.collidepoint(event.pos):
                             if Grid.isDrawing:
                                 grid.grid_cells[i][j].state = GridCell.drawn
